@@ -28,24 +28,26 @@ let end_pos = Parsing.symbol_end
 
 %type <Absyn.exp> exp
 %type <Absyn.tp> tp
-%type <Absyn.oper> oper
 %type <Absyn.tp list> tp_list
 %type <Absyn.exp list> exp_list
 
-%left PROJ REF BANG UMINUS LPAREN
+%left LET IN
+%left SEMICOLON
+%left THEN
+%left IF ELSE DO WHILE
+%left ASSIGN
+%left COLON
+%left AND OR
+%left NOT
+%left EQ LT
+%left PLUS MINUS
 %right ARROW
 %left TIMES
-%left PLUS MINUS
-%left EQ LT GT
-%left NOT
-%left AND OR
-%left COLON
-%left ASSIGN
-%left SEMICOLON
+%left PROJ REF BANG UMINUS LPAREN
 
 %%
 
-prog: fundec_list EOF { $1 }
+prog: fundec_list { $1 }
 
 fundec_list:
   | fundec fundec_list { $1 :: $2 }
@@ -77,49 +79,39 @@ exp_list:
   | exp COMMA exp_list { $1 :: $3 }
   | { [] }        /* empty list */
 
-oper:
-  | PLUS {A.Add}
-  | MINUS {A.Sub}
-  | TIMES {A.Mul}
-  | LT {A.LT}
-  | EQ {A.Eq}
-  | REF {A.Ref}
-  | GET {A.Get}
-  | SET {A.Set}
-
 exp:
-  | ID { A.Id(S.symbol $1) }    
-  | NUM { A.Int($1) }         
-  | LT exp_list GT { A.Tuple($2) }
+  | ID { A.Pos((start_pos(), end_pos()), A.Id(S.symbol $1)) }    
+  | NUM { A.Pos((start_pos(), end_pos()), A.Int($1)) }         
+  | LT exp_list GT { A.Pos((start_pos(), end_pos()), A.Tuple($2)) }
 
-  | LPAREN exp RPAREN { $2 }        
+  | LPAREN exp RPAREN { A.Pos((start_pos(), end_pos()), $2) }        
   
-  | exp SEMICOLON exp { A.Let(S.symbol "", $1, $3) }
-  | MINUS exp %prec UMINUS { A.Op(A.Sub, [A.Int(0); $2]) }
-  | NOT exp { A.Op(A.Sub, [A.Int(1); $2]) }
-  | BANG exp { A.Op(A.Get, [$2]) }   
+  | exp SEMICOLON exp { A.Pos((start_pos(), end_pos()), A.Let(S.symbol "", $1, $3)) }
+  | MINUS exp %prec UMINUS { A.Pos((start_pos(), end_pos()), A.Op(A.Sub, [A.Int(0); $2])) }
+  | NOT exp { A.Pos((start_pos(), end_pos()), A.Op(A.Sub, [A.Int(1); $2])) }
+  | BANG exp { A.Pos((start_pos(), end_pos()), A.Op(A.Get, [$2])) }   
 
-  | PROJ exp { A.Proj($1, $2) }
-  | PROJ NUM exp { A.Proj($2, $3) }
+  | PROJ exp { A.Pos((start_pos(), end_pos()), A.Proj($1, $2)) }
+/*  | PROJ NUM exp { A.Proj($2, $3) } */
 
-  | exp PLUS exp { A.Op(A.Add, [$1; $3]) }
-  | exp MINUS exp { A.Op(A.Sub, [$1; $3]) }
-  | exp TIMES exp { A.Op(A.Mul, [$1; $3]) }
-  | exp AND exp { A.If($1, $3, A.Int(0)) }
-  | exp OR exp { A.If($1, A.Int(1), $3) }
-  | exp LT exp { A.Op(A.LT, [$1; $3]) }
-  | exp EQ exp { A.Op(A.Eq, [$1; $3]) }
-  | exp GT exp { A.Op(A.LT, [$3; $1]) }
-  | exp REF exp { A.Op(A.Ref, [$1; $3]) }
+  | exp PLUS exp { A.Pos((start_pos(), end_pos()), A.Op(A.Add, [$1; $3])) }
+  | exp MINUS exp { A.Pos((start_pos(), end_pos()), A.Op(A.Sub, [$1; $3])) }
+  | exp TIMES exp { A.Pos((start_pos(), end_pos()), A.Op(A.Mul, [$1; $3])) }
+  | exp AND exp { A.Pos((start_pos(), end_pos()), A.If($1, $3, A.Int(0))) }
+  | exp OR exp { A.Pos((start_pos(), end_pos()), A.If($1, A.Int(1), $3)) }
+  | exp LT exp { A.Pos((start_pos(), end_pos()), A.Op(A.LT, [$1; $3])) }
+  | exp EQ exp { A.Pos((start_pos(), end_pos()), A.Op(A.Eq, [$1; $3])) }
+/*  | exp GT exp { A.Pos((start_pos(), end_pos()), A.Op(A.LT, [$3; $1])) } */
+  | exp REF exp { A.Pos((start_pos(), end_pos()), A.Op(A.Ref, [$1; $3])) }
 
   | exp LPAREN exp RPAREN { A.Pos((start_pos(), end_pos()), A.Call($1, $3)) }
   
-  | exp COLON tp { A.Constrain($1, $3) }
-  | IF exp THEN exp ELSE exp { If($2, $4, $6) }
-  | IF exp THEN exp { If($2, $4, A.Int(0)) }
-  | WHILE exp DO exp { A.While($2, $4) }
-  | LET ID EQ exp IN exp { A.Let(S.symbol $2, $4, $6) }
-  | REF exp { A.Op(A.Ref, [$2]) }
-  | exp ASSIGN exp { A.Op(A.Set, [$1; $3]) }
+  | exp COLON tp { A.Pos((start_pos(), end_pos()), A.Constrain($1, $3)) }
+  | IF exp THEN exp ELSE exp { A.Pos((start_pos(), end_pos()), If($2, $4, $6)) }
+  | IF exp THEN exp { A.Pos((start_pos(), end_pos()), If($2, $4, A.Int(0))) }
+  | WHILE exp DO exp { A.Pos((start_pos(), end_pos()), A.While($2, $4)) }
+  | LET ID EQ exp IN exp { A.Pos((start_pos(), end_pos()), A.Let(S.symbol $2, $4, $6)) }
+  | REF exp { A.Pos((start_pos(), end_pos()), A.Op(A.Ref, [$2])) }
+  | exp ASSIGN exp { A.Pos((start_pos(), end_pos()), A.Op(A.Set, [$1; $3])) }
 
 %%
