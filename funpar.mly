@@ -51,7 +51,7 @@ prog: fundec_list { $1 }
 
 fundec_list:
   | fundec fundec_list { $1 :: $2 }
-  | { [] }         /* empty list */
+  | { [] }          /* empty list */
 
 fundec: func {(start_pos(), end_pos()), $1}
 
@@ -63,16 +63,20 @@ func:
 tp:
   | ID { if $1 = "int" then A.Inttp else raise (Parsing.Parse_error) }
   | NUM                   { A.Inttp }              /* no argument */
-  | LT GT                 { A.Tupletp( [] ) }      /* n=0 for n-ary tuple */
-  | LT tp_list GT         { A.Tupletp( $2 ) }      /* tuple expression */
+/*  | LT GT                 { A.Tupletp( [] ) }*/      /* n=0 for n-ary tuple */
+  | LT tp_list_opt GT     { A.Tupletp( $2 ) }      /* tuple expression */
   | tp REF                { A.Reftp($1) }
   | tp ARROW tp           { A.Arrowtp ($1, $3) }
   | LPAREN tp RPAREN      { $2 }
 
+tp_list_opt:  /* additional define 'tp_list_optional' */
+  | tp_list { $1 }
+  | { [] }          /* empty list */    
+
 tp_list:
   | tp { [$1] }
   | tp COMMA tp_list { $1 :: $3 }
-  | { [] }        /* empty list */    
+/*  | { [] } */     /* empty list */  
 
 exp_list:
   | exp { [$1] }
